@@ -1,0 +1,51 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { build } = require('esbuild');
+const { fixture, cleanup } = require('./fixture.cjs');
+
+test('subjects and source libraries stay separate and preserve originals, history and coverage', async () => {
+  const root = await fixture();
+  try {
+    await build({ entryPoints: [path.join(__dirname, '../src/sources.ts')], outfile: path.join(root, 'sources.cjs'), bundle: true, platform: 'node', format: 'cjs' });
+    await build({ entryPoints: [path.join(__dirname, '../src/data.ts')], outfile: path.join(root, 'data.cjs'), bundle: true, platform: 'node', format: 'cjs' });
+    const { SourceLibrary } = require(path.join(root, 'sources.cjs'));
+    const { StudyStore } = require(path.join(root, 'data.cjs'));
+    const store = new StudyStore(root), sources = new SourceLibrary(store);
+    const before = await store.snapshot(null);
+    for (const name of ['', '../Escape', 'A/B', 'A\\B', 'con.txt', 'LPT1', 'COM¹', '.hidden', 'End.', 'x'.repeat(81)]) await assert.rejects(sources.createSubject(name));
+    assert.equal(await sources.createSubject(' Biology '), 'Biology');
+    assert.ok((await store.subjects()).includes('Biology'));
+    before.subjects = ['Biology', ...before.subjects];
+    await assert.rejects(sources.createSubject('biology'), /already exists/);
+    assert.deepEqual((await store.dashboard('Biology')).topics, []);
+    assert.deepEqual(await store.snapshot(null), before, 'creating a scaffold must not change active subject or existing time/history');
+    await assert.rejects(sources.generationPrompt('Biology'), /at least one source/);
+    const original = path.join(root, 'chapter.pdf');
+    await fs.writeFile(original, 'original PDF fixture');
+    await sources.importFiles('Biology', [original]);
+    await fs.writeFile(original, 'revised PDF fixture');
+    await sources.importFiles('Biology', [original]);
+    assert.equal(await fs.readFile(path.join(root, 'Sources/Biology/chapter.pdf'), 'utf8'), 'original PDF fixture');
+    assert.equal(await fs.readFile(path.join(root, 'Sources/Biology/chapter (2).pdf'), 'utf8'), 'revised PDF fixture');
+    assert.equal(await fs.readFile(original, 'utf8'), 'revised PDF fixture');
+    assert.deepEqual(await sources.list('React'), []);
+    await fs.writeFile(path.join(root, 'bad.exe'), 'not a document');
+    await assert.rejects(sources.importFiles('Biology', [original, path.join(root, 'bad.exe')]), /Choose PDF/);
+    assert.equal((await sources.list('Biology')).length, 2, 'invalid batch must not import its earlier valid files');
+    for (const url of ['file:///C:/secret', 'javascript:alert(1)', 'invalid', 'https://user:password@example.com', 'https://example.com\nURL=file:///secret']) await assert.rejects(sources.addURL('Biology', url));
+    await sources.addURL('Biology', 'https://example.com/lesson');
+    await sources.addURL('Biology', 'https://example.com/lesson');
+    const list = await sources.list('Biology');
+    assert.equal(list.length, 3);
+    assert.equal(list.find(s => s.kind === 'url').url, 'https://example.com/lesson');
+    await assert.rejects(sources.list('../React'));
+    const prompt = await sources.generationPrompt('Biology');
+    for (const text of ['$tutor-setup', 'Document Mode', 'Sources', 'Biology', 'preserve reached-topic', '.url', 'never invent', 'untrusted']) assert.ok(prompt.includes(text), text);
+    await fs.symlink(path.join(root, 'Sources/React'), path.join(root, 'Sources/Finnish'), 'junction');
+    await assert.rejects(sources.importFiles('Finnish', [original]), /inside their subject/);
+    assert.deepEqual(await sources.list('React'), []);
+    assert.deepEqual(await store.snapshot(null), before);
+  } finally { await cleanup(root); }
+});

@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title>Study Workspace</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <dialog id="subject-dialog" aria-labelledby="subject-dialog-title">
+      <form id="subject-form">
+        <p class="eyebrow">STEP 1 OF 3 &middot; SUBJECT</p>
+        <h2 id="subject-dialog-title">What would you like to study?</h2>
+        <label for="subject-name">Subject name</label>
+        <input
+          id="subject-name"
+          type="text"
+          maxlength="80"
+          required
+          placeholder="For example: Biology"
+        />
+        <label for="subject-type">Tutor type</label
+        ><select id="subject-type">
+          <option value="general">General subject</option>
+          <option value="language">Language</option>
+          <option value="software-engineering">Software engineering</option>
+        </select>
+        <p class="subtle">Suggested from the name. Choose the tutor that fits your goal.</p>
+        <p id="subject-error" role="alert"></p>
+        <p class="subtle">
+          Your new subject will have its own sources, curriculum and study progress.
+        </p>
+        <div class="source-input-row">
+          <button id="create-subject" type="submit" class="primary">Next: add sources</button
+          ><button id="cancel-subject" type="button" class="quiet">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+    <div class="app">
+      <button
+        id="sidebar-toggle"
+        class="sidebar-toggle"
+        aria-label="Hide sidebar"
+        title="Hide sidebar"
+        aria-expanded="true"
+        aria-controls="sidebar"
+      >
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          aria-hidden="true"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="2" />
+          <path d="M9 4v16" />
+        </svg>
+      </button>
+      <aside id="sidebar" class="rail" aria-label="Workspace navigation">
+        <label class="field-label" for="subject">SUBJECT</label>
+        <select id="subject" aria-label="Study subject">
+          <option>Loading subjects…</option>
+        </select>
+        <button id="add-subject" class="quiet">+ Add subject</button>
+        <nav aria-label="Main views">
+          <button id="home-tab" class="nav-button selected" aria-pressed="true">Overview</button>
+          <button id="study-tab" class="nav-button" aria-pressed="false">
+            <span aria-hidden="true">▤</span> Study
+          </button>
+          <button id="quiz-tab" class="nav-button" aria-pressed="false">
+            <span aria-hidden="true">?</span> Practice
+          </button>
+          <button id="dashboard-tab" class="nav-button" aria-pressed="false">
+            <span aria-hidden="true">▦</span> Progress
+          </button>
+          <button id="sources-tab" class="nav-button" aria-pressed="false">
+            <span aria-hidden="true">+</span> Sources
+          </button>
+        </nav>
+        <div class="rail-bottom">
+          <button id="tools-tab" class="nav-button" aria-pressed="false">Tools</button>
+        </div>
+      </aside>
+      <main>
+        <header id="session-widget" class="session-bar" aria-label="Study timer">
+          <div class="session-context">
+            <strong id="subject-label">Study</strong
+            ><span id="current-topic">Choose your next topic</span>
+          </div>
+          <span id="timer-state">PAUSED</span><strong id="elapsed">00:00:00</strong
+          ><button id="timer-toggle" class="secondary">Start</button>
+          <details class="timer-details">
+            <summary aria-label="Timer details">More</summary>
+            <div>
+              <span id="total-time"></span
+              ><button id="timer-reset" class="quiet">Reset session time</button>
+            </div>
+          </details>
+        </header>
+        <section id="home-view" class="home-view" aria-label="Subject overview">
+          <p class="eyebrow">YOUR STUDY SPACE</p>
+          <h1 id="home-subject">Welcome back.</h1>
+          <p id="home-context" class="home-context"></p>
+          <section class="next-activity">
+            <p class="eyebrow">PICK UP WHERE YOU LEFT OFF</p>
+            <h2 id="home-topic">Choose your next lesson</h2>
+            <p id="home-next"></p>
+            <button id="continue-study" class="primary">Continue studying</button
+            ><button id="home-new-session" class="quiet">New session</button>
+          </section>
+          <div class="home-links">
+            <button id="home-practice" class="secondary">Choose material to practise</button
+            ><button id="home-sources" class="quiet">Manage sources</button>
+          </div>
+          <p id="home-readiness" role="status"></p>
+        </section>
+        <section id="tools-view" class="tools-view" aria-label="Developer tools" hidden>
+          <h2>Developer tools</h2>
+          <p>Open a shell or edit your subject files when you need to.</p>
+          <div class="source-input-row">
+            <label for="shell-select">Shell</label
+            ><select id="shell-select">
+              <option value="powershell">PowerShell</option>
+              <option value="bash">Git Bash</option></select
+            ><button id="open-shell" class="secondary">Open shell</button
+            ><button id="close-shell" class="quiet">Close shell</button>
+          </div>
+          <p id="terminal-status" role="status">No shell open</p>
+          <div id="shell-terminal"><div id="terminal" hidden></div></div>
+          <div class="source-input-row">
+            <label for="code-target">Open in VS Code</label
+            ><select id="code-target">
+              <option value="workspace">Project workspace</option>
+              <option value="subject">Subject vault</option></select
+            ><button id="open-code" class="secondary">Open folder</button>
+          </div>
+        </section>
+        <div id="error" role="alert" hidden>
+          <span id="error-text"></span
+          ><button id="dismiss-error" aria-label="Dismiss error">×</button>
+        </div>
+        <section id="sources-view" class="sources-view" aria-label="Subject sources" hidden>
+          <p id="setup-step" class="eyebrow">SOURCES</p>
+          <h2>What are you learning from?</h2>
+          <p>
+            Sources for <strong id="sources-subject"></strong>. Add your files and website links,
+            then generate study material when you’re ready.
+          </p>
+          <label for="source-tutor-type">Tutor type</label
+          ><select id="source-tutor-type">
+            <option value="general">General subject</option>
+            <option value="language">Language</option>
+            <option value="software-engineering">Software engineering</option>
+          </select>
+          <p id="preparation-status" role="status"></p>
+          <button id="import-sources" class="secondary">Add source files</button>
+          <p class="subtle">
+            PDF, TXT, Markdown, HTML and EPUB. Files are copied into this subject’s source folder;
+            existing files are kept.
+          </p>
+          <form id="source-url-form">
+            <label for="source-url">Website URL</label>
+            <div class="source-input-row">
+              <input
+                id="source-url"
+                type="url"
+                maxlength="4096"
+                placeholder="https://example.com/article"
+                required
+              /><button id="add-source-url" class="secondary" type="submit">Add URL</button>
+            </div>
+          </form>
+          <p id="sources-status" role="status" aria-live="polite"></p>
+          <ul id="source-list" aria-label="Added sources"></ul>
+          <button id="generate-material" class="primary" disabled>Prepare study material</button
+          ><button id="skip-sources" class="quiet">Study without sources</button>
+          <p class="subtle">
+            Opens the tutor to verify your sources and build the curriculum. Website access and PDF
+            readability are checked during setup.
+          </p>
+        </section>
+        <section id="study-view" class="workspace notebook-closed" aria-label="Study" hidden>
+          <section class="chat-pane" aria-label="Tutor conversation">
+            <div class="pane-header">
+              <div>
+                <span id="chat-heading" class="pane-title">Your tutor</span
+                ><span id="chat-status" class="subtle" role="status">Ready when you are</span>
+              </div>
+              <div class="terminal-actions">
+                <button
+                  id="change-mode"
+                  class="quiet"
+                  aria-expanded="false"
+                  aria-controls="lesson-modes"
+                >
+                  Study modes</button
+                ><button id="toggle-notebook" class="quiet" aria-pressed="false">Notebook</button
+                ><button id="new-session" class="quiet">New session</button
+                ><button id="end-lesson" class="secondary" hidden>Finish session</button>
+              </div>
+            </div>
+            <section id="lesson-modes" class="lesson-modes" aria-label="Finnish study mode" hidden>
+              <p id="mode-suggestion" class="subtle" role="status"></p>
+              <div id="mode-options" role="group" aria-label="Lesson modes"></div>
+              <form id="generate-text-options" hidden>
+                <div class="text-settings">
+                  <label for="text-level"
+                    >Text level<select id="text-level" required>
+                      <option value="">Choose level</option>
+                    </select></label
+                  ><label for="text-length"
+                    >Length<select id="text-length" required>
+                      <option value="">Choose length</option>
+                    </select></label
+                  ><button id="generate-text-submit" class="primary" type="submit">
+                    Generate text
+                  </button>
+                </div>
+              </form>
+              <p id="mode-help" class="subtle" role="status"></p>
+            </section>
+            <div id="cli-terminal" aria-label="Codex CLI terminal"></div>
+            <div
+              id="chat-messages"
+              class="chat-messages"
+              role="log"
+              aria-label="Conversation"
+              hidden
+            >
+              <p class="chat-welcome">Continue your conversation or start a new session.</p>
+            </div>
+            <div id="chat-requests" class="chat-requests"></div>
+            <div id="setup-ready" class="setup-ready" hidden>
+              <span>Your study material is ready.</span
+              ><button id="setup-start-study" class="primary">Start studying</button>
+            </div>
+            <div id="chat-error" class="chat-error" role="alert" hidden>
+              <p id="chat-error-text"></p>
+              <button id="chat-retry" class="secondary">Reconnect</button>
+            </div>
+            <form id="chat-form" class="chat-composer" hidden>
+              <label class="sr-only" for="chat-input">Message your tutor</label
+              ><textarea
+                id="chat-input"
+                rows="3"
+                maxlength="32000"
+                placeholder="Write your answer or ask a question..."
+              ></textarea>
+              <div>
+                <span class="subtle">Enter to send &middot; Shift+Enter for a new line</span
+                ><button id="stop-response" class="quiet" type="button" hidden>Stop response</button
+                ><button id="chat-send" class="primary" type="submit">Send</button>
+              </div>
+            </form>
+          </section>
+          <div
+            id="divider"
+            role="separator"
+            aria-label="Resize terminal and notebook"
+            aria-orientation="vertical"
+            aria-valuemin="30"
+            aria-valuemax="70"
+            aria-valuenow="55"
+            tabindex="0"
+            hidden
+          ></div>
+          <section class="notes-pane" aria-label="Lesson notebook" hidden>
+            <div class="pane-header">
+              <div><span class="pane-title">Notebook</span></div>
+              <button id="note-recall" class="quiet" disabled>Practise this note</button>
+            </div>
+            <div class="note-selector">
+              <label class="sr-only" for="note-select">Lesson notes</label
+              ><select id="note-select">
+                <option>No lesson notes yet</option></select
+              ><button id="open-note-file" class="quiet" aria-label="Open notes file">
+                Open file
+              </button>
+            </div>
+            <p id="note-flashcard-status" class="note-flashcard-status" role="status" hidden></p>
+            <div id="notes-scroll" class="notes-scroll">
+              <article id="notes-content" class="markdown">
+                <div class="notes-empty">
+                  <h2>Your learning reference.</h2>
+                  <p>Key ideas and examples will appear here as you study.</p>
+                </div>
+              </article>
+            </div>
+          </section>
+        </section>
+        <section id="quiz-view" class="quiz-view" aria-label="Session quiz" hidden>
+          <h2>What would you like to practise?</h2>
+          <label for="practice-material">Choose your material</label
+          ><select id="practice-material">
+            <option value="">Choose a topic or lesson note...</option>
+          </select>
+          <p id="practice-material-help" class="subtle">
+            Choose material here, then select an activity below.
+          </p>
+          <p id="practice-queue" role="status"></p>
+          <button id="practice-cancel" class="quiet" hidden>Cancel pending generation</button>
+          <p>Review words from your notebook or use what you learned in a paragraph.</p>
+          <div
+            id="practice-activities"
+            class="practice-modes"
+            hidden
+            role="group"
+            aria-label="Practice mode"
+          >
+            <button id="flashcards-mode" class="secondary" aria-pressed="true">Flashcards</button>
+            <button id="writing-mode" class="quiet" aria-pressed="false">
+              Writing & note review
+            </button>
+          </div>
+          <section id="flashcards-panel" aria-label="Flashcards">
+            <p>
+              Terms from your session notes are added here automatically. You can also right-click
+              any notebook word to add it.
+            </p>
+            <label><input id="card-due-only" type="checkbox" checked /> Due cards only</label>
+            <p id="card-status" role="status" aria-live="polite"></p>
+            <div class="practice-columns">
+              <div>
+                <label for="card-bank">Flash card word bank</label
+                ><select id="card-bank" size="8" aria-label="Flash card word bank"></select>
+              </div>
+              <section id="card-review" class="practice-card" aria-label="Flashcard review" hidden>
+                <p id="card-position" class="subtle"></p>
+                <h3 id="card-word"></h3>
+                <button id="card-reveal" class="primary">Reveal meaning</button>
+                <div id="card-back" hidden>
+                  <p id="card-meaning"></p>
+                  <p id="card-example"></p>
+                  <div id="card-note-update" hidden>
+                    <p id="card-note-meaning"></p>
+                    <button id="card-accept-note" class="secondary">
+                      Use updated note definition
+                    </button>
+                  </div>
+                </div>
+                <div id="card-rating" hidden>
+                  <p>
+                    Recall the meaning before revealing. Self-ratings schedule review; they do not
+                    change mastery.
+                  </p>
+                  <button id="card-again" class="quiet">Again</button
+                  ><button id="card-remembered" class="primary">Remembered</button>
+                </div>
+                <div class="practice-actions">
+                  <button id="card-prev" class="quiet">Previous</button
+                  ><button id="card-next" class="quiet">Next</button
+                  ><button id="card-edit" class="quiet">Edit card</button
+                  ><button id="card-retry" class="quiet" hidden>Generate meaning / example</button>
+                </div>
+                <form id="card-editor" hidden>
+                  <label for="card-meaning-input">Meaning / translation</label
+                  ><textarea id="card-meaning-input" maxlength="600" required rows="3"></textarea>
+                  <label for="card-example-input">Example sentence</label
+                  ><textarea id="card-example-input" maxlength="600" required rows="3"></textarea>
+                  <button id="card-save" type="submit" class="primary">Save card</button
+                  ><button id="card-edit-cancel" type="button" class="quiet">Cancel</button>
+                </form>
+              </section>
+            </div>
+          </section>
+          <section id="writing-panel" aria-label="Paragraph writing" hidden>
+            <label for="writing-topic">Preferred topic (optional)</label
+            ><input
+              id="writing-topic"
+              type="text"
+              maxlength="160"
+              placeholder="For example: a relaxing weekend"
+            />
+            <p id="writing-note" class="subtle"></p>
+            <button id="writing-generate" class="primary">Generate writing prompt</button>
+            <p id="writing-status" role="status" aria-live="polite"></p>
+            <label for="writing-history">Saved writing and note reviews</label
+            ><select id="writing-history">
+              <option value="">Choose a saved task...</option>
+            </select>
+            <form id="writing-form" hidden>
+              <h3 id="writing-title"></h3>
+              <p id="writing-prompt"></p>
+              <ul id="writing-guidance"></ul>
+              <p id="writing-target" class="subtle"></p>
+              <label for="writing-response">Your response</label
+              ><textarea
+                id="writing-response"
+                rows="8"
+                minlength="10"
+                maxlength="8000"
+                required
+              ></textarea>
+              <p id="writing-count" class="subtle" aria-live="polite"></p>
+              <button id="writing-submit" class="primary" type="submit">Submit for feedback</button>
+              <article id="writing-feedback" hidden></article>
+              <details id="note-reference" hidden>
+                <summary>Reference used for this review</summary>
+                <pre id="note-reference-text"></pre>
+              </details>
+              <div id="writing-followups" hidden>
+                <button id="writing-revise" type="button" class="secondary">
+                  Revise this paragraph</button
+                ><button id="writing-transfer" type="button" class="quiet">
+                  Create later retrieval task
+                </button>
+              </div>
+            </form>
+          </section>
+          <details class="legacy-quizzes" id="quiz-section" hidden>
+            <summary>Multiple-choice quiz</summary>
+            <h2>Recall what you learned.</h2>
+            <p>
+              Four questions from your selected session notes. Submit your choices to see answers
+              and explanations.
+            </p>
+            <div class="quiz-setup">
+              <p id="quiz-note-label">Choose a session page in the lesson notebook.</p>
+              <label for="quiz-sources">Supporting lesson sources (optional, up to four)</label>
+              <select
+                id="quiz-sources"
+                multiple
+                size="4"
+                aria-describedby="quiz-source-help"
+              ></select>
+              <small id="quiz-source-help"
+                >Choose only material covered in this session. Ctrl-click to select multiple
+                sources.</small
+              >
+              <button id="quiz-generate" class="primary">Generate quiz</button>
+              <p id="quiz-status" role="status" aria-live="polite"></p>
+              <small
+                >Codex generates questions using your existing sign-in and configured model. Results
+                stay separate from tutor progress and mastery.</small
+              >
+            </div>
+            <label for="quiz-history">Saved quizzes</label>
+            <select id="quiz-history">
+              <option value="">Choose a saved quiz…</option>
+            </select>
+            <form id="quiz-form" hidden>
+              <h3 id="quiz-title"></h3>
+              <p id="quiz-origin" class="subtle"></p>
+              <div id="quiz-questions"></div>
+              <button id="quiz-submit" class="primary" type="submit">Submit answers</button>
+              <p id="quiz-result" role="status" aria-live="polite"></p>
+            </form>
+          </details>
+        </section>
+        <section id="dashboard-view" class="dashboard" aria-label="Study dashboard" hidden>
+          <div class="dashboard-intro">
+            <h2>Your learning, over time.</h2>
+            <p>
+              Coverage records topics taught or applied. Mastery comes from assessed performance.
+            </p>
+          </div>
+          <section class="learning-summary">
+            <h3>Next useful task</h3>
+            <p id="next-task"></p>
+            <button id="next-task-start" class="primary">Work on this</button>
+            <details>
+              <summary>Skill evidence and gaps</summary>
+              <article id="skill-profile" class="markdown"></article>
+            </details>
+          </section>
+          <div class="stats">
+            <div>
+              <span>Topics reached</span><strong id="coverage-stat">—</strong>
+              <div class="progress-track"><div id="coverage-fill"></div></div>
+            </div>
+            <div>
+              <span>Accumulated time</span><strong id="hours-stat">—</strong
+              ><small>Includes preserved earlier totals</small>
+            </div>
+            <div>
+              <span>This week</span><strong id="week-stat">—</strong
+              ><small>Monday–Sunday · Helsinki</small>
+            </div>
+            <div>
+              <span>Active days</span><strong id="days-stat">—</strong
+              ><small id="active-year">Selected calendar year</small>
+            </div>
+          </div>
+          <section class="activity-section">
+            <div class="section-heading">
+              <h3>Daily study activity</h3>
+              <label for="heatmap-year" class="sr-only">Activity year</label
+              ><select id="heatmap-year"></select>
+            </div>
+            <div class="heatmap-scroll">
+              <div id="heatmap-months" class="heatmap-months"></div>
+              <div id="heatmap" class="heatmap" aria-label="Study activity by Helsinki date"></div>
+            </div>
+            <div class="heatmap-caption">
+              <span id="undated-note">Only actual timed intervals appear here.</span
+              ><span class="legend">Less <i></i><i></i><i></i><i></i><i></i> More</span>
+            </div>
+          </section>
+          <section class="topic-section">
+            <div class="section-heading">
+              <h3>Curriculum topics</h3>
+              <label class="sr-only" for="topic-filter">Filter topics</label
+              ><select id="topic-filter">
+                <option value="all">All topics</option>
+                <option value="reached">Reached</option>
+                <option value="ahead">Still ahead</option>
+              </select>
+            </div>
+            <div id="topic-list"></div>
+          </section>
+        </section>
+        <footer class="statusbar">
+          <span><span class="status-dot" aria-hidden="true"></span>Local workspace</span
+          ><span id="status-message" role="status">Loading…</span
+          ><span id="clock-zone">Europe/Helsinki</span>
+        </footer>
+      </main>
+    </div>
+    <div
+      id="notebook-menu"
+      class="notebook-menu"
+      role="menu"
+      aria-label="Notebook word actions"
+      hidden
+    >
+      <button id="add-flashcard" role="menuitem">Add to flash card word bank</button>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

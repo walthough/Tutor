@@ -4,9 +4,6 @@
 /.tutor-cache/
 /AGENTS.md
 
-# Generated launcher (build from tools/launcher/)
-/StudyApp.exe
-
 # App dependencies and generated files
 /study-app/node_modules/
 /study-app/dist/
